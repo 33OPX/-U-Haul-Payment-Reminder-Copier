@@ -2,15 +2,15 @@
     // ==UserScript==
     // @name         U-Haul Payment Reminder Copier (Multi-Message Dropdown)
     // @namespace    http://tampermonkey.net/
-    // @version      2.1
+    // @version      2.0
     // @description  Adds a dropdown copy button for U-Haul payment reminders on webselfstorage.com with multiple message options
     // @author       You
     // @match        https://webselfstorage.com/*
     // @grant        GM_setClipboard
     // @grant        none
     // @run-at       document-end
-    // @updateURL    https://your-server.com/path/to/Storage.user.js
-    // @downloadURL  https://your-server.com/path/to/Storage.user.js
+    // @updateURL   https://raw.githubusercontent.com/33OPX/-U-Haul-Payment-Reminder-Copier/main/WSS%20Storage%20SMS%20Copier.js
+    // @downloadURL https://raw.githubusercontent.com/33OPX/-U-Haul-Payment-Reminder-Copier/main/WSS%20Storage%20SMS%20Copier.js
     // ==/UserScript==
 
     // --- Autopay Failure Detection (Worksheet Parsing & Storage) ---
@@ -1542,4 +1542,3 @@
     waitForDateAndInsertDropdown();
     addNoteQuickButtons();
 }());
-
