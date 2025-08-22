@@ -2,7 +2,7 @@
     // ==UserScript==
     // @name         U-Haul Payment Reminder Copier (Multi-Message Dropdown)
     // @namespace    http://tampermonkey.net/
-    // @version      2.1
+    // @version      2.0
     // @description  Adds a dropdown copy button for U-Haul payment reminders on webselfstorage.com with multiple message options
     // @author       You
     // @match        https://webselfstorage.com/*
@@ -605,6 +605,18 @@
                             } else if (navigator.clipboard) {
                                 navigator.clipboard.writeText(msgDiv.innerText);
                             }
+                            // Auto-press the SMS bubble icon button
+                            const smsBtn = document.querySelector('.fa-comment-sms.sms-bubble-icon.texting');
+                            if (smsBtn) smsBtn.click();
+                            // Try to auto-fill the chat input after a short delay (wait for box to appear)
+                            setTimeout(() => {
+                                const chatInput = document.getElementById('chatUserInput');
+                                if (chatInput) {
+                                    chatInput.value = msgDiv.innerText;
+                                    // Trigger input event for frameworks
+                                    chatInput.dispatchEvent(new Event('input', { bubbles: true }));
+                                }
+                            }, 100);
                             copyBtn.innerText = 'Copied!';
                             setTimeout(() => {
                                 const modal = document.getElementById('uh-copy-modal');
@@ -729,6 +741,18 @@
                             } else if (navigator.clipboard) {
                                 navigator.clipboard.writeText(msgText.innerText);
                             }
+                            // Auto-press the SMS bubble icon button
+                            const smsBtn = document.querySelector('.fa-comment-sms.sms-bubble-icon.texting');
+                            if (smsBtn) smsBtn.click();
+                            // Try to auto-fill the chat input after a short delay (wait for box to appear)
+                            setTimeout(() => {
+                                const chatInput = document.getElementById('chatUserInput');
+                                if (chatInput) {
+                                    chatInput.value = msgText.innerText;
+                                    // Trigger input event for frameworks
+                                    chatInput.dispatchEvent(new Event('input', { bubbles: true }));
+                                }
+                            }, 100);
                             copyBtn.innerText = 'Copied!';
                             setTimeout(() => {
                                 const modal = document.getElementById('uh-copy-modal');
@@ -1542,4 +1566,3 @@
     waitForDateAndInsertDropdown();
     addNoteQuickButtons();
 }());
-
