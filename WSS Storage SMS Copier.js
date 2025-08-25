@@ -33,22 +33,21 @@
         rows.forEach(row => {
             const tds = row.querySelectorAll('td');
             if (tds.length) {
-                // Detect contract number row: look for a cell with a value like '875067-105749'
+                // Detect contract number row: look for a cell with a value like '875067-3045' (allow 1+ digits after dash)
+                let foundContract = false;
                 for (let td of tds) {
-                    let match = td.textContent.match(/(\d{5,})-(\d{5,})/);
+                    let match = td.textContent.match(/(\d{5,})-(\d{1,})/);
                     if (match) {
                         // Use the part after the dash as the contract number
                         currentContract = match[2];
+                        foundContract = true;
                         break;
                     }
                 }
-                // Detect (AutoPayments User) row: any cell contains that text
-                if (currentContract) {
-                    for (let td of tds) {
-                        if (td.textContent.includes('(AutoPayments User)')) {
-                            failures[currentContract] = true;
-                            break;
-                        }
+                // If (AutoPayments User) appears in this row, mark the contract above as failed
+                for (let td of tds) {
+                    if (td.textContent.includes('(AutoPayments User)') && currentContract) {
+                        failures[currentContract] = true;
                     }
                 }
             }
@@ -1332,7 +1331,15 @@
             // --- Custom Dropdown and Insert/Delete Buttons ---
             }
 
-            // Organize options into primary and alternate rows
+            // Detect page type for identifier
+            let pageId = '';
+            if (/CollectionWorksheet|Autopay/.test(window.location.href) || document.querySelector('.management-report')) {
+                pageId = '2'; // Collection Worksheet page
+            } else {
+                pageId = '1'; // Contract Notes page (default)
+            }
+
+            // Organize options into primary and alternate rows with page-specific identifiers
             const primaryOptions = [
                 'Left primary voicemail',
                 'Primary voicemail full',
@@ -1382,9 +1389,15 @@
                         if (phrases.indexOf(text) === -1) {
                             textarea.value = val ? (val + '; ' + text) : text;
                             textarea.focus();
-                            // Fix: trigger input event so frameworks/knockout see the change
-                            const event = new Event('input', { bubbles: true });
-                            textarea.dispatchEvent(event);
+                            // Fix: trigger both 'input' and 'change' events for better framework compatibility
+                            const inputEvent = new Event('input', { bubbles: true });
+                            textarea.dispatchEvent(inputEvent);
+                            const changeEvent = new Event('change', { bubbles: true });
+                            textarea.dispatchEvent(changeEvent);
+                            // For Collection Worksheet page, also trigger blur to force update
+                            if (pageId === '2') {
+                                textarea.blur();
+                            }
                         }
                     };
                     row.appendChild(btn);
@@ -1449,9 +1462,13 @@
                 if (!val) return;
                 textarea.value = val;
                 textarea.focus();
-                // Fix: trigger input event so frameworks/knockout see the change
-                const event = new Event('input', { bubbles: true });
-                textarea.dispatchEvent(event);
+                // Trigger input and change events for framework compatibility
+                textarea.dispatchEvent(new Event('input', { bubbles: true }));
+                textarea.dispatchEvent(new Event('change', { bubbles: true }));
+                // For Collection Worksheet page, also trigger blur to force update
+                if (pageId === '2') {
+                    textarea.blur();
+                }
             };
 
             deleteCustomBtn = document.createElement('button');
@@ -1495,9 +1512,13 @@
                 if (phrases.indexOf(text) === -1) {
                     textarea.value = val ? (val + '; ' + text) : text;
                     textarea.focus();
-                    // Fix: trigger input event so frameworks/knockout see the change
-                    const event = new Event('input', { bubbles: true });
-                    textarea.dispatchEvent(event);
+                    // Trigger input and change events for framework compatibility
+                    textarea.dispatchEvent(new Event('input', { bubbles: true }));
+                    textarea.dispatchEvent(new Event('change', { bubbles: true }));
+                    // For Collection Worksheet page, also trigger blur to force update
+                    if (pageId === '2') {
+                        textarea.blur();
+                    }
                 }
             };
 
