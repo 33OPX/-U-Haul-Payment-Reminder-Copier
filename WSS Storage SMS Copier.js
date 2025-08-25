@@ -2,7 +2,7 @@
     // ==UserScript==
     // @name         U-Haul Payment Reminder Copier (Multi-Message Dropdown)
     // @namespace    http://tampermonkey.net/
-    // @version      2.0
+    // @version      2.1
     // @description  Adds a dropdown copy button for U-Haul payment reminders on webselfstorage.com with multiple message options
     // @author       You
     // @match        https://webselfstorage.com/*
@@ -1587,3 +1587,4 @@
     waitForDateAndInsertDropdown();
     addNoteQuickButtons();
 }());
+
