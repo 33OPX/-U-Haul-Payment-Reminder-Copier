@@ -1,8 +1,7 @@
-
-    // ==UserScript==
+// ==UserScript==
     // @name         U-Haul Payment Reminder Copier (Multi-Message Dropdown)
     // @namespace    http://tampermonkey.net/
-    // @version      2.1
+    // @version      3.0
     // @description  Adds a dropdown copy button for U-Haul payment reminders on webselfstorage.com with multiple message options
     // @author       You
     // @match        https://webselfstorage.com/*
@@ -153,11 +152,207 @@
             if (dts[i].textContent.trim().toLowerCase() === 'name:') {
                 const dd = dts[i].nextElementSibling;
                 if (dd && dd.tagName.toLowerCase() === 'dd') {
-                    return formatName(dd.textContent.trim());
+                    // Only get the original text node (not including button or other elements)
+                    for (let node of dd.childNodes) {
+                        if (node.nodeType === Node.TEXT_NODE) {
+                            return formatName(node.textContent.trim());
+                        }
+                    }
                 }
             }
         }
         return '';
+    }
+
+    // Extract customer email from the description list
+    function getCustomerEmail() {
+        const dts = document.querySelectorAll('dl.description-list--customerEdit dt');
+        for (let i = 0; i < dts.length; i++) {
+            if (dts[i].textContent.trim().toLowerCase() === 'email:') {
+                const dd = dts[i].nextElementSibling;
+                if (dd && dd.tagName.toLowerCase() === 'dd') {
+                    return dd.textContent.trim();
+                }
+            }
+        }
+        return '';
+    }
+
+        // Extract customer zip code from the description list
+        function getCustomerZip() {
+            const dts = document.querySelectorAll('dl.description-list--customerEdit dt');
+            for (let i = 0; i < dts.length; i++) {
+                if (dts[i].textContent.trim().toLowerCase() === 'zip:' || dts[i].textContent.trim().toLowerCase() === 'zip code:') {
+                    const dd = dts[i].nextElementSibling;
+                    if (dd && dd.tagName.toLowerCase() === 'dd') {
+                        return dd.textContent.trim();
+                    }
+                }
+            }
+            // Fallback: try to find zip in address field
+            for (let i = 0; i < dts.length; i++) {
+                if (dts[i].textContent.trim().toLowerCase().includes('address')) {
+                    const dd = dts[i].nextElementSibling;
+                    if (dd && dd.tagName.toLowerCase() === 'dd') {
+                        // Try to extract zip from address string
+                        const match = dd.textContent.trim().match(/\b\d{5}(?:-\d{4})?\b/);
+                        if (match) return match[0];
+                    }
+                }
+            }
+            return '';
+        }
+
+    // Add magnifying glass buttons next to Name and Email fields
+    function addTruePeopleSearchButtons() {
+        const dts = document.querySelectorAll('dl.description-list--customerEdit dt');
+        for (let i = 0; i < dts.length; i++) {
+            const label = dts[i].textContent.trim().toLowerCase();
+            if (label === 'name:' || label === 'email:') {
+                const dd = dts[i].nextElementSibling;
+                if (dd && dd.tagName.toLowerCase() === 'dd') {
+                    // Avoid duplicate button
+                    if (dd.querySelector('.truepeoplesearch-btn')) continue;
+                    const btn = document.createElement('button');
+                    btn.type = 'button';
+                    btn.className = 'truepeoplesearch-btn';
+                    btn.title = 'Search on TruePeopleSearch and copy URL';
+                    btn.style.marginLeft = '8px';
+                    btn.style.background = 'none';
+                    btn.style.border = 'none';
+                    btn.style.cursor = 'pointer';
+                    btn.innerHTML = '<span style="font-size:16px;vertical-align:middle;" aria-label="Search">🔍</span>';
+                    btn.addEventListener('click', function(e) {
+                        e.stopPropagation();
+                        let url = '';
+                        if (label === 'name:') {
+                            const name = getCustomerName();
+                            const zip = getCustomerZip();
+                            if (name && zip) {
+                                url = `https://www.truepeoplesearch.com/results?name=${encodeURIComponent(name)}&citystatezip=${encodeURIComponent(zip)}`;
+                            } else if (name) {
+                                url = `https://www.truepeoplesearch.com/results?name=${encodeURIComponent(name)}`;
+                            }
+                        } else if (label === 'email:') {
+                            const email = getCustomerEmail();
+                            if (email) {
+                                // Convert email to truepeoplesearch format
+                                let [user, domain] = email.split('@');
+                                if (user && domain) {
+                                    let provider = domain.split('.')[0];
+                                    let tpsEmail = user.replace(/\./g, '_dot_') + provider;
+                                    url = `https://www.truepeoplesearch.com/resultemail?email=${encodeURIComponent(tpsEmail)}`;
+                                } else {
+                                    url = `https://www.truepeoplesearch.com/resultemail?email=${encodeURIComponent(email)}`;
+                                }
+                            }
+                        }
+                        // Open URL directly without clipboard
+                        if (url) {
+                            window.open(url, '_blank');
+                        }
+                    });
+                    dd.appendChild(btn);
+                }
+            }
+        }
+    }
+
+    function getCustomerEmailClean() {
+        const dts = document.querySelectorAll('dl.description-list--customerEdit dt');
+        for (let i = 0; i < dts.length; i++) {
+            if (dts[i].textContent.trim().toLowerCase() === 'email:') {
+                const dd = dts[i].nextElementSibling;
+                if (dd && dd.tagName.toLowerCase() === 'dd') {
+                    for (let node of dd.childNodes) {
+                        if (node.nodeType === Node.TEXT_NODE) {
+                            return node.textContent.trim();
+                        }
+                    }
+                }
+            }
+        }
+        return '';
+    }
+
+    function getCustomerEmail() {
+        // Find the email address in the dd element that contains the email customer link
+        const emailCustomerLink = document.querySelector('#emailCustomerLink');
+        if (emailCustomerLink && emailCustomerLink.parentNode) {
+            const ddElement = emailCustomerLink.parentNode;
+            const emailText = ddElement.textContent.trim();
+            // Extract email using regex
+            const emailMatch = emailText.match(/([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/);
+            return emailMatch ? emailMatch[1] : null;
+        }
+        return null;
+    }
+
+    function addTruePeopleSearchEmailButton() {
+        // Find the specific email customer link (not the email receipt modal)
+        const emailCustomerLink = document.querySelector('#emailCustomerLink');
+        if (emailCustomerLink) {
+            // Avoid duplicate button
+            if (emailCustomerLink.nextSibling && emailCustomerLink.nextSibling.classList && emailCustomerLink.nextSibling.classList.contains('truepeoplesearch-email-btn')) return;
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'truepeoplesearch-email-btn';
+            btn.setAttribute('title', 'Search Email on TruePeopleSearch');
+            btn.style.marginLeft = '4px';
+            btn.style.background = 'none';
+            btn.style.border = 'none';
+            btn.style.cursor = 'pointer';
+            btn.style.width = '18px';
+            btn.style.height = '18px';
+            btn.style.padding = '0';
+            btn.innerHTML = '<span style="font-size:16px;vertical-align:middle;" aria-label="Search">🔍</span>';
+            btn.addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                // Get the customer email
+                const email = getCustomerEmail();
+                let url = '';
+                if (email) {
+                    // Extract username part (before @) and domain part (after @)
+                    const [username, domain] = email.split('@');
+                    
+                    if (username && domain) {
+                        // Convert domain to _at_domain_dot_extension format
+                        // Replace dots with _dot_ and prepend _at_
+                        const formattedDomain = '_at_' + domain.replace(/\./g, '_dot_');
+                        
+                        // Create modified email without @ symbol
+                        const modifiedEmail = username + formattedDomain;
+                        url = `https://www.truepeoplesearch.com/resultemail?email=${modifiedEmail}`;
+                    }
+                }
+                // Open URL directly without clipboard
+                if (url) {
+                    window.open(url, '_blank');
+                }
+            }, true);
+            // Insert the button after the email customer link
+            if (emailCustomerLink.parentNode) {
+                emailCustomerLink.parentNode.insertBefore(btn, emailCustomerLink.nextSibling);
+            }
+        }
+    }
+
+    // Run on page load and after AJAX updates
+    function runTPSButtonInjection() {
+        addTruePeopleSearchButtons();
+        addTruePeopleSearchEmailButton();
+        const observer = new MutationObserver(() => {
+            addTruePeopleSearchButtons();
+            addTruePeopleSearchEmailButton();
+        });
+        observer.observe(document.body, { childList: true, subtree: true });
+    }
+
+    if (document.readyState === 'complete' || document.readyState === 'interactive') {
+        runTPSButtonInjection();
+    } else {
+        document.addEventListener('DOMContentLoaded', runTPSButtonInjection);
     }
 
     function getFirstName(fullName) {
@@ -556,9 +751,6 @@
                 }
                 if (daysLate >= 1 && daysLate <= 4) {
                     let msg = `Hey ${firstName}, this is ${employeeName} from U-Haul. To prevent a late fee please call us or download our app to conveniently manage your storage account.`;
-                    if (msg.length > 142) {
-                        msg = msg.replace('conveniently ', '');
-                    }
                     messages.push({
                         title: `Late Fee Reminder (${daysLate} days late)`,
                         text: msg,
@@ -567,9 +759,6 @@
                 }
                 if (daysLate >= 5 && daysLate <= 999) {
                     let msg = `Hey ${firstName} this is ${employeeName} from U-Haul. The next step is to incur late fees and I REALLY don’t want that to happen. What can I do to help?`;
-                    if (msg.length > 142) {
-                        msg = msg.replace('REALLY ', '');
-                    }
                     messages.push({
                         title: `Late Fee Imminent (${daysLate} days late)`,
                         text: msg,
@@ -687,11 +876,7 @@
                     selectedDateObj.units.forEach(({unit, balance}) => {
                         let msg = tpl.template;
                         function fitNameCustom(msg, firstName, fullName) {
-                            if (msg.replace(/<customername>/gi, fullName).length <= 142) {
-                                return fullName;
-                            } else {
-                                return firstName;
-                            }
+                            return fullName;
                         }
                         let nameToUse = fitNameCustom(msg, firstName, fullName);
                         msg = msg.replace(/<customername>/gi, nameToUse)
@@ -704,9 +889,6 @@
                                  .replace(/<latefeedate>/gi, lateFeeDate)
                                  .replace(/<today>/gi, todayStr)
                                  .replace(/<employeename>/gi, getEmployeeFirstName());
-                        if (msg.length > 142) {
-                            msg = msg.slice(0, 139) + '...';
-                        }
                         // Message box with border
                         const msgBox = document.createElement('div');
                         msgBox.style.border = '1px solid #ccc';
@@ -1105,6 +1287,7 @@
                 editIdx = null;
                 select.value = '';
             };
+
             // Button row (no Copy All)
             const btnRow = document.createElement('div');
             btnRow.style.display = 'flex';
@@ -1265,7 +1448,17 @@
             // --- Custom Message Storage ---
             function getCustomNotes() {
                 try {
-                    return JSON.parse(localStorage.getItem('uhCustomNoteTemplates') || '[]');
+                    const notes = JSON.parse(localStorage.getItem('uhCustomNoteTemplates') || '[]');
+                    // Handle migration from old format (just strings) to new format (objects)
+                    if (notes.length > 0 && typeof notes[0] === 'string') {
+                        const migrated = notes.map((text, index) => ({
+                            name: `Custom Message ${index + 1}`,
+                            message: text
+                        }));
+                        saveCustomNotes(migrated);
+                        return migrated;
+                    }
+                    return notes;
                 } catch (e) {
                     return [];
                 }
@@ -1274,40 +1467,7 @@
                 localStorage.setItem('uhCustomNoteTemplates', JSON.stringify(arr));
             }
 
-            // --- Save to Custom Button ---
-            const saveCustomBtn = document.createElement('button');
-            saveCustomBtn.type = 'button';
-            saveCustomBtn.innerText = 'Save to Custom';
-            saveCustomBtn.style.fontSize = '13px';
-            saveCustomBtn.style.padding = '3px 10px';
-            saveCustomBtn.style.marginBottom = '6px';
-            saveCustomBtn.style.marginRight = '8px';
-            saveCustomBtn.style.background = '#ffc107';
-            saveCustomBtn.style.border = '1px solid #aaa';
-            saveCustomBtn.style.borderRadius = '4px';
-            saveCustomBtn.style.cursor = 'pointer';
-            saveCustomBtn.onclick = function() {
-                const val = textarea.value.trim();
-                if (!val) {
-                    saveCustomBtn.innerText = 'Nothing to Save!';
-                    setTimeout(() => { saveCustomBtn.innerText = 'Save to Custom'; }, 1000);
-                    return;
-                }
-                let arr = getCustomNotes();
-                if (arr.indexOf(val) === -1) {
-                    arr.push(val);
-                    saveCustomNotes(arr);
-                    saveCustomBtn.innerText = 'Saved!';
-                    setTimeout(() => { saveCustomBtn.innerText = 'Save to Custom'; }, 1000);
-                    refreshCustomDropdown();
-                } else {
-                    saveCustomBtn.innerText = 'Already Exists';
-                    setTimeout(() => { saveCustomBtn.innerText = 'Save to Custom'; }, 1000);
-                }
-            };
-
-            // Insert Save to Custom button above textarea
-            textarea.parentNode.insertBefore(saveCustomBtn, textarea);
+            // Save to Custom button will be added to the button row instead
 
             // --- Custom Dropdown ---
             let customDropdown, insertCustomBtn, deleteCustomBtn;
@@ -1320,15 +1480,15 @@
                 customDropdown.appendChild(defaultOpt);
                 arr.forEach((note, i) => {
                     const opt = document.createElement('option');
-                    opt.value = note;
-                    opt.innerText = note.length > 40 ? note.slice(0, 37) + '...' : note;
+                    opt.value = note.message;
+                    opt.innerText = note.name;
+                    opt.title = note.message; // Tooltip showing full message
                     customDropdown.appendChild(opt);
                 });
                 // Disable delete button if nothing selected
                 if (deleteCustomBtn) {
                     deleteCustomBtn.disabled = !customDropdown.value;
                 }
-            // --- Custom Dropdown and Insert/Delete Buttons ---
             }
 
             // Detect page type for identifier
@@ -1445,8 +1605,9 @@
             customDropdown.style.borderRadius = '4px';
             customDropdown.style.border = '1px solid #aaa';
             customDropdown.style.background = '#f5f5f5';
-            customDropdown.style.marginLeft = '8px';
-            customDropdown.style.maxWidth = '220px';
+            customDropdown.style.width = '180px';
+            customDropdown.style.maxWidth = '180px';
+            customDropdown.style.minWidth = '180px';
             insertCustomBtn = document.createElement('button');
             insertCustomBtn.type = 'button';
             insertCustomBtn.innerText = 'Insert';
@@ -1488,8 +1649,58 @@
                 if (!val) return;
                 if (!confirm('Delete this custom note?')) return;
                 let arr = getCustomNotes();
-                arr = arr.filter(note => note !== val);
+                arr = arr.filter(note => note.message !== val);
                 saveCustomNotes(arr);
+                refreshCustomDropdown();
+            };
+
+            // Save to Custom button
+            const saveCustomBtn = document.createElement('button');
+            saveCustomBtn.type = 'button';
+            saveCustomBtn.innerText = 'Save to Custom';
+            saveCustomBtn.style.fontSize = '12px';
+            saveCustomBtn.style.padding = '2px 10px';
+            saveCustomBtn.style.borderRadius = '4px';
+            saveCustomBtn.style.border = '1px solid #ffc107';
+            saveCustomBtn.style.background = '#fff8dc';
+            saveCustomBtn.style.color = '#856404';
+            saveCustomBtn.style.cursor = 'pointer';
+            saveCustomBtn.style.marginLeft = '2px';
+            saveCustomBtn.style.whiteSpace = 'nowrap';
+            saveCustomBtn.onclick = function() {
+                const val = textarea.value.trim();
+                if (!val) {
+                    saveCustomBtn.innerText = 'Nothing to Save!';
+                    setTimeout(() => { saveCustomBtn.innerText = 'Save to Custom'; }, 1000);
+                    return;
+                }
+                
+                const customName = prompt('Custom Message Name:', 'My Custom Message');
+                if (!customName) return; // User cancelled
+                
+                let arr = getCustomNotes();
+                // Check if message already exists
+                const existingMessage = arr.find(note => note.message === val);
+                if (existingMessage) {
+                    saveCustomBtn.innerText = 'Already Exists';
+                    setTimeout(() => { saveCustomBtn.innerText = 'Save to Custom'; }, 1000);
+                    return;
+                }
+                
+                // Check if name already exists
+                const existingName = arr.find(note => note.name === customName);
+                if (existingName) {
+                    if (!confirm(`A message with the name "${customName}" already exists. Replace it?`)) {
+                        return;
+                    }
+                    // Remove the existing one
+                    arr = arr.filter(note => note.name !== customName);
+                }
+                
+                arr.push({ name: customName, message: val });
+                saveCustomNotes(arr);
+                saveCustomBtn.innerText = 'Saved!';
+                setTimeout(() => { saveCustomBtn.innerText = 'Save to Custom'; }, 1000);
                 refreshCustomDropdown();
             };
 
@@ -1524,10 +1735,23 @@
 
             customRow.appendChild(payByBtn);
             customRow.appendChild(dateInput);
-            customRow.appendChild(customDropdown);
-            customRow.appendChild(insertCustomBtn);
-            customRow.appendChild(deleteCustomBtn);
             btnContainer.appendChild(customRow);
+
+            // Create a separate row for Custom Notes buttons below the "Customer will pay by" selector
+            const customNotesRow = document.createElement('div');
+            customNotesRow.style.display = 'flex';
+            customNotesRow.style.flexDirection = 'row';
+            customNotesRow.style.gap = '6px';
+            customNotesRow.style.flexWrap = 'nowrap';
+            customNotesRow.style.marginTop = '6px';
+            customNotesRow.style.marginLeft = '0px';
+            customNotesRow.style.paddingLeft = '0px';
+
+            customNotesRow.appendChild(customDropdown);
+            customNotesRow.appendChild(insertCustomBtn);
+            customNotesRow.appendChild(deleteCustomBtn);
+            customNotesRow.appendChild(saveCustomBtn);
+            btnContainer.appendChild(customNotesRow);
 
             // Make the modal textarea and all parent containers wider, and text smaller for better fit
             if (btnContainerId === 'note-quick-btns-modal') {
@@ -1587,4 +1811,5 @@
     waitForDateAndInsertDropdown();
     addNoteQuickButtons();
 }());
+
 
